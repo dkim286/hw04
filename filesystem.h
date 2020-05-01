@@ -86,5 +86,6 @@ int free_alloc_chain(int head);
 int find_avail_alloc_entry();
 int get_fildes_index(int fildes);
 int get_file_blocksize(int fildes);
+int get_eof_block_idx(int fildes);
 
 #endif

@@ -299,6 +299,7 @@ int fs_write(int fildes, void * buf, size_t nbyte)
            bytes_to_fill,   /* bytes that can fit in the block, up to nbytes */
            bytes_r = 0;     /* bytes written from recursive calls, if any */
     int fat_idx,
+        bytes_delta,
         idx = get_fildes_index(fildes);
     char * source = (char *) buf;
 
@@ -315,9 +316,17 @@ int fs_write(int fildes, void * buf, size_t nbyte)
         
     nbyte -= bytes_to_fill;
 
+    // write to virt disk and advance pointer forward
     memcpy(descriptors[idx].ptr, source, bytes_to_fill);
-    descriptors[idx].attr->size += bytes_to_fill;
     descriptors[idx].ptr += bytes_to_fill;
+
+    /* if at EOF block AND writing past file limit, increase filesize */
+    if (block_offset == (size_t)get_eof_block_idx(fildes))
+    {
+        bytes_delta = bytes_to_fill - descriptors[idx].attr->size % BLOCK_SIZE;
+        if (bytes_delta > 0)
+            descriptors[idx].attr->size += bytes_delta;
+    }
 
     // file ptr is at end of block: move it to next available block
     if (descriptors[idx].ptr == disk + (block_offset + 1) * BLOCK_SIZE)
@@ -568,4 +577,19 @@ int get_file_blocksize(int fildes)
         return -1;
 
     return (descriptors[idx].attr->size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+}
+int get_eof_block_idx(int fildes)
+{
+    int block_idx,
+        idx = get_fildes_index(fildes);
+
+    if (idx < 0)
+        return -1;
+
+    block_idx = descriptors[idx].attr->offset;
+    while (fat->table[block_idx] != FAT_EOF)
+    {
+        block_idx = fat->table[block_idx];
+    }
+    return block_idx;
 }
