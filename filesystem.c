@@ -423,6 +423,8 @@ int fs_truncate(int fildes, off_t length)
     fat_idx = fat->table[fat_idx];
     free_alloc_chain(fat_idx);
     fat->table[eof_idx] = FAT_EOF;
+    memset(disk + eof_idx * BLOCK_SIZE + length % BLOCK_SIZE, 0, 
+            BLOCK_SIZE - (length % BLOCK_SIZE));
     descriptors[idx].attr->size = length;
 
     // ptr to final byte of truncated file
@@ -534,13 +536,16 @@ int free_alloc_chain(int head)
     memset(disk + head * BLOCK_SIZE, 0, BLOCK_SIZE);
 
     /* either unused or probably hit the end of the chain */
-    if (idx == FAT_UNUSED || idx == FAT_EOF)
+    if (idx == FAT_UNUSED)
     {
         return 0;
     }
 
     fat->table[head] = FAT_UNUSED;
-    return free_alloc_chain(idx);
+    if (idx != FAT_EOF)
+        return free_alloc_chain(idx);
+    else
+        return 0;
 }
 
 int find_avail_alloc_entry()
