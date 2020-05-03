@@ -200,9 +200,9 @@ int fs_create(char * name)
 
 int fs_delete(char * name)
 {
-    int idx = 0;
-    Attribute * del, * end;
-    
+    int idx = 0;    /* index of file with matching name */
+   
+    /* find file within descriptors (is it open?) */
     while (idx < descriptor_size 
             && strcmp(name, descriptors[idx].attr->name) != 0)
     {
@@ -215,6 +215,7 @@ int fs_delete(char * name)
         return -1;
     }
 
+    /* find file within dir structure */
     idx = 0;
     while (idx < dir->size && strcmp(name, dir->attributes[idx].name) != 0)
     {
@@ -228,19 +229,13 @@ int fs_delete(char * name)
     }
 
     // finally "delete" the file
-    if (dir->size == 1)
+    dir->size--;
+    free_alloc_chain(dir->attributes[idx].offset);
+    if (dir->size == 0)
     {
-        dir->size--;
         return 0;
     }
-    free_alloc_chain(dir->attributes[idx].offset);
-    del = &dir->attributes[idx];
-    end = &dir->attributes[dir->size - 1];
-    strcpy(del->name, end->name);
-    del->size = end->size;
-    del->offset = end->offset;
-    dir->size--;
-
+    dir->attributes[idx] = dir->attributes[dir->size];
     return 0;
 }
 
@@ -400,6 +395,7 @@ int fs_truncate(int fildes, off_t length)
 {
     int blocks,
         fat_idx,
+        eof_idx,
         idx = get_fildes_index(fildes);
     char * file_ptr;
 
@@ -413,12 +409,20 @@ int fs_truncate(int fildes, off_t length)
    
     // find truncated file's FAT table index for its final block
     fat_idx = descriptors[idx].attr->offset;
-    for (int i = 0; i < blocks - 1; i++)
+    for (int i = 1; i < blocks - 1; i++)
     {
         fat_idx = fat->table[fat_idx];
     }
 
+    // truncated length is EOF? ret 0
+    if (fat->table[fat_idx] == FAT_EOF)
+        return 0;
+
+    // else, set truncated block's end as EOF and free the rest
+    eof_idx = fat_idx;
+    fat_idx = fat->table[fat_idx];
     free_alloc_chain(fat_idx);
+    fat->table[eof_idx] = FAT_EOF;
     descriptors[idx].attr->size = length;
 
     // ptr to final byte of truncated file
@@ -452,10 +456,13 @@ void print_disk_struct()
     {
         printf("%d ", fat->table[i]);
     }
-    printf("\nFirst file: name=%s size=%d offset=%d\n",
-            attrib->name,
-            attrib->size,
-            attrib->offset);
+    if (dir->size == 0)
+        printf("\nNo files present\n");
+    else
+        printf("\nFirst file: name=%s size=%d offset=%d\n",
+                attrib->name,
+                attrib->size,
+                attrib->offset);
     printf("First 50 bytes of data block: |");
     for (int i = 0; i < 50; i++)
     {
@@ -519,25 +526,21 @@ int free_alloc_chain(int head)
 {
     int idx;
 
-    if (head > DISK_BLOCKS)
-        return -1;
-    if (head < 0)
+    /* this shouldn't happen */
+    if (head > DISK_BLOCKS || head == FAT_RESERVED)
         return -1;
 
     idx = fat->table[head];
-    if (idx == FAT_UNUSED || idx == FAT_RESERVED)
-        return -1;
-    if (idx == FAT_EOF)
-        return 0;
+    memset(disk + head * BLOCK_SIZE, 0, BLOCK_SIZE);
 
-    fat->table[head] = FAT_EOF;
-    while (idx != FAT_EOF)
+    /* either unused or probably hit the end of the chain */
+    if (idx == FAT_UNUSED || idx == FAT_EOF)
     {
-        head = idx;
-        idx = fat->table[head];
-        fat->table[head] = FAT_UNUSED;
+        return 0;
     }
-    return 0;
+
+    fat->table[head] = FAT_UNUSED;
+    return free_alloc_chain(idx);
 }
 
 int find_avail_alloc_entry()
