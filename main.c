@@ -90,8 +90,41 @@ int main()
     printf("printed %d %d\n", a, b);
     print_disk_struct();
 
+    printf("\ntruncating that large file\n");
+    fs_truncate(d, 10);
+    memset(target, 0, 13);
+    bytes = fs_read(d, target, 12);
+    fs_lseek(d, 0);
+    printf("result should be '%.10s': |%s|\n", chonk, target);
+    printf("%d bytes read\n", bytes);
+    print_disk_struct();
 
-    fs_close(0);
+    printf("\ndeleting file\n");
+    fs_close(d);
+    fs_delete("example");
+    print_disk_struct();
+
+    printf("\ncreating max number of files\n");
+    char name[2] = { 'a' };
+    for (int i = 0; i < MAX_FILES; i++)
+    {
+        printf("creating file '%s'\n", name);
+        fs_create(name);
+        name[0]++;
+    }
+    print_disk_struct();
+
+    printf("\ndeleting all those files\n");
+    name[0] = 'a';
+    for (int i = 0; i < MAX_FILES; i++)
+    {
+        printf("deleting file '%s'\n", name);
+        fs_delete(name);
+        name[0]++;
+    }
+    print_disk_struct();
+
+
 
     if (umount_fs(diskname) < 0)
         return 1;
