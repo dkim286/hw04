@@ -1,0 +1,41 @@
+Building -----------------------------------------------------------------------
+
+    If the executable are missing for C version of the assignment, run
+    $ gcc *.h *.c -o fs
+
+
+Execution ----------------------------------------------------------------------
+
+    Run the program:
+    
+        $ ./fs
+
+
+    The program will ask if you want to load an existing disk or make a new one:
+
+        Create a new disk? (y/n):
+
+
+    If this is the first time running the program, enter 'y' to create and
+    name the new disk:
+
+        Create a new disk? (y/n): y
+        Name the new disk: mydisk
+
+
+    After that, the program runs automatically and exits.
+
+    There's no special arguments needed. The main function runs a series of
+    tests using the functions defined.
+
+
+    If you want to load an existing disk, run the program again and choose 'n'
+    when asked to create a new disk:
+
+        Create a new disk? (y/n): n
+        List of available disks:
+          test1
+          test123
+          asdf
+        Enter the name of disk to load:
+
