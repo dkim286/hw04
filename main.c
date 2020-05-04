@@ -31,6 +31,7 @@ int main()
         return 1;
 
     // test it out real quick
+    fs_create("example");
     int d = fs_open("example");
     char buffer[13] = "what is this";
     char target[13];
@@ -43,7 +44,6 @@ int main()
     printf("\nreading 'example' file\n");
     bytes = fs_read(d, target, 13);
     fs_lseek(d, 0);
-    printf("result should be '%s': |%s|\n", buffer, target);
     printf("%d bytes read\n", bytes);
     print_disk_struct();
 
@@ -85,9 +85,8 @@ int main()
     bytes = fs_read(d, chonkt, 8999);
     fs_lseek(d, 0);
     printf("%d bytes read\n", bytes);
-    int a =printf("result should be '%s'", chonk);
-    int b = printf(", and it was this|%s|\n", chonkt);
-    printf("printed %d %d\n", a, b);
+    printf("result should be '%s'", chonk);
+    printf(", and it was this|%s|\n", chonkt);
     print_disk_struct();
 
     printf("\ntruncating that large file\n");
@@ -124,6 +123,26 @@ int main()
     }
     print_disk_struct();
 
+    printf("\ncreating & writing a file with max possible size (4096x4096)\n");
+    char bigbuf[BLOCK_SIZE];
+    memset(bigbuf, 'x', BLOCK_SIZE);
+    fs_create("big file");
+    int big_file_fildes = fs_open("big file");
+    for (int i = 0; i < BLOCK_SIZE; i++)
+        fs_write(big_file_fildes, bigbuf, BLOCK_SIZE);
+    print_disk_struct();
+
+    printf("\nreading first 100 chars of that giant file\n");
+    fs_lseek(big_file_fildes, 0);
+    char bigtarget[101];
+    memset(bigtarget, 0, 101);
+    fs_read(big_file_fildes, bigtarget, 100);
+    printf("result: %s\n", bigtarget);
+
+    printf("\ndeleting that giant file\n");
+    fs_close(big_file_fildes);
+    fs_delete("big file");
+    print_disk_struct();
 
 
     if (umount_fs(diskname) < 0)
