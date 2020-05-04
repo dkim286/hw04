@@ -41,9 +41,6 @@ int make_fs(char * disk_name)
     for (int i = 0; i < super->data_block_offset; i++)
         fat->table[i] = FAT_RESERVED;
 
-    // create a file real quick
-    fs_create("example");
-
     if (write_blocks(disk, 0, DISK_BLOCKS) < 0)
         return -1;
 	
@@ -187,7 +184,7 @@ int fs_create(char * name)
 
     // finally, create a file attrib entry
     attrib = &dir->attributes[dir->size];
-    strncpy(attrib->name, name, MAX_FILENAME);
+    memcpy(attrib->name, name, MAX_FILENAME);
     attrib->size = 0;
     attrib->offset = fat_idx;
 
@@ -428,8 +425,12 @@ int fs_truncate(int fildes, off_t length)
     descriptors[idx].attr->size = length;
 
     // ptr to final byte of truncated file
-    file_ptr = disk + fat_idx * BLOCK_SIZE 
+    file_ptr = disk + eof_idx * BLOCK_SIZE 
         + descriptors[idx].attr->size % BLOCK_SIZE;
+
+    // trim the rest of the EOF block
+    memset(file_ptr + 1, 0, 
+            BLOCK_SIZE - descriptors[idx].attr->size & BLOCK_SIZE);
 
     // reset file ptr if it's pointing past the truncated end
     if (file_ptr < descriptors[idx].ptr)
