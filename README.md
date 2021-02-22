@@ -1,5 +1,7 @@
 # HW04
 
+Filesystem demo for CSUF's Operating Systems class. Developed in conjunction with [Chris](https://github.com/cdnutter).
+
 ## Building
 ```text
 $ gcc *.h *.c -o fs
